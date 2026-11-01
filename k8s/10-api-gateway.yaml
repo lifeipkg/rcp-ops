@@ -30,8 +30,8 @@ spec:
           env:
             - name: SERVER_PORT
               value: "8080"
-
-          env:
+            # 上游地址：注册中心未接入期间由环境变量给出（RL-007 例外已登记）。
+            # 接入 Nacos 后改由 spring.cloud.nacos.discovery 按服务名解析，这四条随之删除。
             - name: PATROL_ROUTES_ENDPOINTS_CONTENT
               value: http://content-patrol:8081
             - name: PATROL_ROUTES_ENDPOINTS_MESSAGE
@@ -40,6 +40,12 @@ spec:
               value: http://account-patrol:8083
             - name: PATROL_ROUTES_ENDPOINTS_FUND
               value: http://fund-patrol:8084
+            # 服务发现形态（对应 registry/services.yaml 的 discovery 段）。
+            # 当前应用代码未读取这两项，属于预留锚点；接入 discovery 依赖后才生效。
+            - name: NACOS_SERVER
+              value: nacos:8848
+            - name: NACOS_NAMESPACE
+              value: risk-control
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness

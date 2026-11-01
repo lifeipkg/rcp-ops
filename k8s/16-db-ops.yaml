@@ -30,8 +30,6 @@ spec:
           env:
             - name: SERVER_PORT
               value: "8091"
-
-          env:
             - name: DBOPS_MIGRATIONS_DIR
               value: /app/migrations
             - name: SPRING_DATASOURCE_URL
