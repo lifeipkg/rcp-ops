@@ -16,23 +16,22 @@ MVN="${MVN:-mvn}"
 
 step() { printf '\n\033[1m== %s\033[0m\n' "$1"; }
 
-step "契约 YAML 可解析"
-python - <<'PY'
-import glob, sys, yaml
-bad = []
-for f in sorted(glob.glob('rcp-contracts/**/*.yaml', recursive=True) + glob.glob('rcp-contracts/**/*.yml', recursive=True)):
-    try:
-        list(yaml.safe_load_all(open(f, encoding='utf-8')))
-    except Exception as exc:
-        bad.append(f'{f}: {exc}')
-if bad:
-    print('\n'.join(bad))
-    sys.exit(1)
-print(f'OK: {len(glob.glob("rcp-contracts/**/*.yaml", recursive=True))} 个 YAML')
-PY
+step "契约 YAML 严格解析（含重复键）"
+python rcp-ops/tools/check_manifests.py rcp-contracts
 
-step "本体一致性（登记 / 契约 / 红线）"
-python rcp-ontology/rcp_ontology/cli.py check --contracts rcp-contracts
+step "本体一致性（登记 / 契约 / 红线 / 仓布局）"
+python rcp-ontology/rcp_ontology/cli.py check --contracts rcp-contracts --workspace .
+
+step "契约层静态检查（引用 / 决策内联 / 破坏性变更）"
+# 基线只在有远端时才对比：新仓或离线副本没有 origin/main，跳过而不是失败。
+BASELINE=""
+if git -C rcp-contracts rev-parse --verify -q origin/main >/dev/null 2>&1; then
+  BASELINE="--baseline origin/main"
+fi
+python rcp-contracts/tools/contract_lint.py --contracts rcp-contracts $BASELINE
+
+step "契约仓单元测试"
+(cd rcp-contracts && python -m pytest -q tests)
 
 step "本体单元测试"
 (cd rcp-ontology && python -m pytest -q)
@@ -83,19 +82,7 @@ if missing:
 print('OK: 引用齐全', refs)
 PY
 
-step "部署清单可解析"
-python - <<'PY'
-import glob, sys, yaml
-bad = []
-for f in sorted(glob.glob('rcp-ops/**/*.yaml', recursive=True) + glob.glob('rcp-ops/**/*.yml', recursive=True)):
-    try:
-        list(yaml.safe_load_all(open(f, encoding='utf-8')))
-    except Exception as exc:
-        bad.append(f'{f}: {exc}')
-if bad:
-    print('\n'.join(bad))
-    sys.exit(1)
-print('OK: 清单全部可解析')
-PY
+step "部署清单严格解析（含重复键）"
+python rcp-ops/tools/check_manifests.py rcp-ops
 
 printf '\n\033[1;32m全部通过\033[0m\n'

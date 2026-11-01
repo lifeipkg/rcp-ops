@@ -10,6 +10,7 @@ resources:
   - k8s/00-namespace.yaml
   - k8s/01-configmap.yaml
   - k8s/02-secret.example.yaml
+  - k8s/05-nacos.yaml
   - k8s/10-api-gateway.yaml
   - k8s/11-content-patrol.yaml
   - k8s/12-message-patrol.yaml

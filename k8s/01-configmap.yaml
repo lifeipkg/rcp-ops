@@ -11,3 +11,8 @@ data:
   PATROL_ROUTES_ENDPOINTS_FUND: http://fund-patrol:8084
   DBOPS_MIGRATIONS_DIR: /app/migrations
   DATAWAY_DATASOURCE_NAME: main
+  # 服务发现（形态已声明，应用侧尚未接入）：接入后消费方按 NACOS_SERVER 解析上游，
+  # 上方的 PATROL_ROUTES_ENDPOINTS_* 随之删除。切换步骤见 docs/DISCOVERY.md。
+  NACOS_SERVER: nacos:8848
+  NACOS_NAMESPACE: risk-control
+  NACOS_GROUP: DEFAULT_GROUP
