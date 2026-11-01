@@ -30,8 +30,8 @@ spec:
           env:
             - name: SERVER_PORT
               value: "8080"
-
-          env:
+            # 上游地址：注册中心未接入期间由环境变量给出（RL-007 例外已登记）。
+            # 接入 Nacos 后改由 spring.cloud.nacos.discovery 按服务名解析，这四条随之删除。
             - name: PATROL_ROUTES_ENDPOINTS_CONTENT
               value: http://content-patrol:8081
             - name: PATROL_ROUTES_ENDPOINTS_MESSAGE

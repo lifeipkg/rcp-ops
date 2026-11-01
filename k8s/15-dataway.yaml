@@ -30,8 +30,6 @@ spec:
           env:
             - name: SERVER_PORT
               value: "8090"
-
-          env:
             - name: SPRING_DATASOURCE_URL
               value: jdbc:mysql://mysql:3306/risk_control?useUnicode=true&characterEncoding=utf8
             - name: SPRING_DATASOURCE_USERNAME

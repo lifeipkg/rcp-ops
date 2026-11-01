@@ -18,6 +18,21 @@ services:
       timeout: 5s
       retries: 10
 
+  # 注册/配置中心：形态就位，应用侧尚未引入 discovery 依赖。
+  # 因此网关路由仍由 PATROL_ROUTES_ENDPOINTS_* 给出（RL-007 例外已登记）。
+  # 切换步骤见 docs/DISCOVERY.md；未加 healthcheck 是因为镜像内是否带 curl 随版本变化，
+  # 不写无法验证的探针。
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    environment:
+      MODE: standalone
+      NACOS_AUTH_ENABLE: "false"
+      JVM_XMS: 256m
+      JVM_XMX: 512m
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+
   api-gateway:
     build: ../rcp-api-gateway
     environment:

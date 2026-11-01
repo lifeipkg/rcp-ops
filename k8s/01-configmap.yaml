@@ -11,3 +11,6 @@ data:
   PATROL_ROUTES_ENDPOINTS_FUND: http://fund-patrol:8084
   DBOPS_MIGRATIONS_DIR: /app/migrations
   DATAWAY_DATASOURCE_NAME: main
+  # 服务发现无需在此注入：application.yml 的占位符自带默认值
+  # （server-addr: ${NACOS_SERVER:nacos:8848}），而 nacos 的 Service 名恰好是 nacos。
+  # 只有换 namespace 或跨集群部署时才需要注入，届时随 discovery.state 一起改。
