@@ -1,0 +1,36 @@
+name: ops
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 依赖
+        run: python -m pip install --quiet pyyaml
+
+      - name: 迁移版本配对
+        run: python tools/check_migrations.py
+
+      - name: 清单可解析
+        run: |
+          python - <<'PY'
+          import glob, sys, yaml
+          bad = []
+          for f in sorted(glob.glob('**/*.yaml', recursive=True) + glob.glob('**/*.yml', recursive=True)):
+              try:
+                  list(yaml.safe_load_all(open(f, encoding='utf-8')))
+              except Exception as exc:
+                  bad.append(f'{f}: {exc}')
+          print('\n'.join(bad) if bad else 'OK: 全部 YAML 可解析')
+          sys.exit(1 if bad else 0)
+          PY

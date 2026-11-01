@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db-ops
+  namespace: risk-control
+  labels:
+    app: db-ops
+    platform: risk-control
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db-ops
+  template:
+    metadata:
+      labels:
+        app: db-ops
+        platform: risk-control
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: db-ops
+          image: ghcr.io/lifeipkg/rcp-db-ops:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8091
+              name: http
+          env:
+            - name: SERVER_PORT
+              value: "8091"
+
+          env:
+            - name: DBOPS_MIGRATIONS_DIR
+              value: /app/migrations
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:mysql://mysql:3306/risk_control?useUnicode=true&characterEncoding=utf8
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: rcp-db-credential
+                  key: username
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rcp-db-credential
+                  key: password
+          volumeMounts:
+            - name: migrations
+              mountPath: /app/migrations
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 40
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 200m
+              memory: 384Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: migrations
+          configMap:
+            name: db-migrations
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-ops
+  namespace: risk-control
+  labels:
+    app: db-ops
+spec:
+  type: ClusterIP
+  selector:
+    app: db-ops
+  ports:
+    - name: http
+      port: 8091
+      targetPort: http

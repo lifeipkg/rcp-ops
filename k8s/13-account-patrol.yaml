@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: account-patrol
+  namespace: risk-control
+  labels:
+    app: account-patrol
+    platform: risk-control
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: account-patrol
+  template:
+    metadata:
+      labels:
+        app: account-patrol
+        platform: risk-control
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: account-patrol
+          image: ghcr.io/lifeipkg/rcp-account-patrol:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8083
+              name: http
+          env:
+            - name: SERVER_PORT
+              value: "8083"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 40
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 200m
+              memory: 384Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: account-patrol
+  namespace: risk-control
+  labels:
+    app: account-patrol
+spec:
+  type: ClusterIP
+  selector:
+    app: account-patrol
+  ports:
+    - name: http
+      port: 8083
+      targetPort: http

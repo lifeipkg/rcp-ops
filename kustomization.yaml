@@ -1,0 +1,47 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# 在 rcp-ops 根目录执行：kubectl apply -k .
+# 迁移 SQL 由 configMapGenerator 打进 db-ops 的 /app/migrations 挂载点，
+# 保证"执行迁移的服务"与"迁移真源"来自同一次提交（不允许两处漂移）。
+namespace: risk-control
+
+resources:
+  - k8s/00-namespace.yaml
+  - k8s/01-configmap.yaml
+  - k8s/02-secret.example.yaml
+  - k8s/10-api-gateway.yaml
+  - k8s/11-content-patrol.yaml
+  - k8s/12-message-patrol.yaml
+  - k8s/13-account-patrol.yaml
+  - k8s/14-fund-patrol.yaml
+  - k8s/15-dataway.yaml
+  - k8s/16-db-ops.yaml
+  - k8s/20-web.yaml
+  - k8s/90-ingress.yaml
+
+configMapGenerator:
+  - name: db-migrations
+    files:
+      - migrations/V1.0.0__common_schema.sql
+      - migrations/V1.1.0__content_patrol.sql
+      - migrations/V1.2.0__message_patrol.sql
+      - migrations/V1.3.0__event_verdict_ledger.sql
+
+images:
+  - name: ghcr.io/lifeipkg/rcp-api-gateway
+    newTag: 1.0.0
+  - name: ghcr.io/lifeipkg/rcp-content-patrol
+    newTag: 1.0.0
+  - name: ghcr.io/lifeipkg/rcp-message-patrol
+    newTag: 1.0.0
+  - name: ghcr.io/lifeipkg/rcp-account-patrol
+    newTag: 1.0.0
+  - name: ghcr.io/lifeipkg/rcp-fund-patrol
+    newTag: 1.0.0
+  - name: ghcr.io/lifeipkg/rcp-dataway
+    newTag: 1.0.0
+  - name: ghcr.io/lifeipkg/rcp-db-ops
+    newTag: 1.0.0
+  - name: ghcr.io/lifeipkg/rcp-web
+    newTag: 1.0.0

@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dataway
+  namespace: risk-control
+  labels:
+    app: dataway
+    platform: risk-control
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dataway
+  template:
+    metadata:
+      labels:
+        app: dataway
+        platform: risk-control
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: dataway
+          image: ghcr.io/lifeipkg/rcp-dataway:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8090
+              name: http
+          env:
+            - name: SERVER_PORT
+              value: "8090"
+
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:mysql://mysql:3306/risk_control?useUnicode=true&characterEncoding=utf8
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: rcp-db-credential
+                  key: username
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rcp-db-credential
+                  key: password
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 40
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 200m
+              memory: 384Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dataway
+  namespace: risk-control
+  labels:
+    app: dataway
+spec:
+  type: ClusterIP
+  selector:
+    app: dataway
+  ports:
+    - name: http
+      port: 8090
+      targetPort: http

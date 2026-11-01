@@ -1,0 +1,77 @@
+# 本地一键起全平台：docker compose up --build
+# 构建上下文指向同工作区的兄弟仓，所以必须在 rcp-ops 目录下执行。
+name: risk-control
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: risk_control
+      MYSQL_USER: risk_app
+      MYSQL_PASSWORD: risk_app_pwd
+      MYSQL_ROOT_PASSWORD: root_pwd
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_pwd"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api-gateway:
+    build: ../rcp-api-gateway
+    environment:
+      SERVER_PORT: "8080"
+      PATROL_ROUTES_ENDPOINTS_CONTENT: http://content-patrol:8081
+      PATROL_ROUTES_ENDPOINTS_MESSAGE: http://message-patrol:8082
+      PATROL_ROUTES_ENDPOINTS_ACCOUNT: http://account-patrol:8083
+      PATROL_ROUTES_ENDPOINTS_FUND: http://fund-patrol:8084
+    ports:
+      - "8080:8080"
+    depends_on: [content-patrol, message-patrol, account-patrol, fund-patrol]
+
+  content-patrol:
+    build: ../rcp-content-patrol
+    ports: ["8081:8081"]
+
+  message-patrol:
+    build: ../rcp-message-patrol
+    ports: ["8082:8082"]
+
+  account-patrol:
+    build: ../rcp-account-patrol
+    ports: ["8083:8083"]
+
+  fund-patrol:
+    build: ../rcp-fund-patrol
+    ports: ["8084:8084"]
+
+  dataway:
+    build: ../rcp-dataway
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/risk_control?useUnicode=true&characterEncoding=utf8
+      SPRING_DATASOURCE_USERNAME: risk_app
+      SPRING_DATASOURCE_PASSWORD: risk_app_pwd
+    ports: ["8090:8090"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  db-ops:
+    build: ../rcp-db-ops
+    environment:
+      DBOPS_MIGRATIONS_DIR: /app/migrations
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/risk_control?useUnicode=true&characterEncoding=utf8
+      SPRING_DATASOURCE_USERNAME: risk_app
+      SPRING_DATASOURCE_PASSWORD: risk_app_pwd
+    volumes:
+      - ./migrations:/app/migrations:ro
+    ports: ["8091:8091"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  web:
+    build: ../rcp-web
+    ports: ["5173:8080"]
+    depends_on: [api-gateway]
