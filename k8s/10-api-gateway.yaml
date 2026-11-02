@@ -30,16 +30,8 @@ spec:
           env:
             - name: SERVER_PORT
               value: "8080"
-            # 上游地址：注册中心未接入期间由环境变量给出（RL-007 例外已登记）。
-            # 接入 Nacos 后改由 spring.cloud.nacos.discovery 按服务名解析，这四条随之删除。
-            - name: PATROL_ROUTES_ENDPOINTS_CONTENT
-              value: http://content-patrol:8081
-            - name: PATROL_ROUTES_ENDPOINTS_MESSAGE
-              value: http://message-patrol:8082
-            - name: PATROL_ROUTES_ENDPOINTS_ACCOUNT
-              value: http://account-patrol:8083
-            - name: PATROL_ROUTES_ENDPOINTS_FUND
-              value: http://fund-patrol:8084
+            # 巡查线地址经 Nacos 按服务名解析（spring.cloud.nacos.discovery，
+            # 占位符默认值命中 Service 名 nacos），清单不写死上游地址（RL-007）。
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness

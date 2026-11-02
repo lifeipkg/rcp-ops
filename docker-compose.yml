@@ -55,15 +55,18 @@ services:
     depends_on:
       nacos-init:
         condition: service_completed_successfully
+      content-patrol:
+        condition: service_started
+      message-patrol:
+        condition: service_started
+      account-patrol:
+        condition: service_started
+      fund-patrol:
+        condition: service_started
     environment:
       SERVER_PORT: "8080"
-      PATROL_ROUTES_ENDPOINTS_CONTENT: http://content-patrol:8081
-      PATROL_ROUTES_ENDPOINTS_MESSAGE: http://message-patrol:8082
-      PATROL_ROUTES_ENDPOINTS_ACCOUNT: http://account-patrol:8083
-      PATROL_ROUTES_ENDPOINTS_FUND: http://fund-patrol:8084
     ports:
       - "8080:8080"
-    depends_on: [content-patrol, message-patrol, account-patrol, fund-patrol]
 
   content-patrol:
     build: ../rcp-content-patrol
