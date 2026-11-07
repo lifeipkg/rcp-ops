@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iam
+  namespace: risk-control
+  labels:
+    app: iam
+    platform: risk-control
+spec:
+  # 会话与用户都在 PostgreSQL（经 dataway），不在实例内存，故可多副本；
+  # 当前仍按 1 副本部署。本服务是平台唯一 IAM（Go + Gin 实现）。
+  replicas: 1
+  selector:
+    matchLabels:
+      app: iam
+  template:
+    metadata:
+      labels:
+        app: iam
+        platform: risk-control
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001   # 与 rcp-iam/Dockerfile 的 app 用户一致
+      containers:
+        - name: iam
+          image: ghcr.io/lifeipkg/rcp-iam:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8085
+              name: http
+          env:
+            - name: SERVER_PORT
+              value: "8085"
+            # 按服务名解析上游：只注入 Service 名与端口，不写完整 URL（RL-007）。
+            - name: DATAWAY_HOST
+              value: dataway
+            - name: DATAWAY_PORT
+              value: "8090"
+            - name: DATAWAY_DATASOURCE
+              value: main
+            - name: IAM_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rcp-iam-bootstrap
+                  key: admin-password
+                  optional: true
+            - name: IAM_OPERATOR_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rcp-iam-bootstrap
+                  key: operator-password
+                  optional: true
+            - name: IAM_VIEWER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rcp-iam-bootstrap
+                  key: viewer-password
+                  optional: true
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: iam
+  namespace: risk-control
+  labels:
+    app: iam
+spec:
+  type: ClusterIP
+  selector:
+    app: iam
+  ports:
+    - name: http
+      port: 8085
+      targetPort: http

@@ -33,7 +33,7 @@ spec:
             - name: DBOPS_MIGRATIONS_DIR
               value: /app/migrations
             - name: SPRING_DATASOURCE_URL
-              value: jdbc:mysql://mysql:3306/risk_control?useUnicode=true&characterEncoding=utf8
+              value: jdbc:postgresql://postgres:5432/risk_control
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom:
                 secretKeyRef:

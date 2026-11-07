@@ -3,17 +3,16 @@
 name: risk-control
 
 services:
-  mysql:
-    image: mysql:8.0
+  postgres:
+    image: postgres:16
     environment:
-      MYSQL_DATABASE: risk_control
-      MYSQL_USER: risk_app
-      MYSQL_PASSWORD: risk_app_pwd
-      MYSQL_ROOT_PASSWORD: root_pwd
+      POSTGRES_DB: risk_control
+      POSTGRES_USER: risk_app
+      POSTGRES_PASSWORD: risk_app_pwd
     ports:
-      - "3306:3306"
+      - "5432:5432"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_pwd"]
+      test: ["CMD-SHELL", "pg_isready -U risk_app -d risk_control"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -63,6 +62,8 @@ services:
         condition: service_started
       fund-patrol:
         condition: service_started
+      iam:
+        condition: service_started
     environment:
       SERVER_PORT: "8080"
     ports:
@@ -96,36 +97,55 @@ services:
         condition: service_completed_successfully
     ports: ["8084:8084"]
 
+  # 身份与访问管理：网关逐请求内省判定令牌，登录/用户管理经网关透传。
+  # 引导口令用演示默认值，真实部署改为 Secret 注入（见 k8s/02-secret.example.yaml）。
   dataway:
     build: ../rcp-dataway
+    # 两个前置条件必须写在同一个 depends_on 下：YAML 重复键会让后一个静默覆盖前一个，
+    # 之前写成两段时 nacos-init 条件就是这么丢掉的（check_manifests 会判红）。
     depends_on:
       nacos-init:
         condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/risk_control?useUnicode=true&characterEncoding=utf8
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/risk_control
       SPRING_DATASOURCE_USERNAME: risk_app
       SPRING_DATASOURCE_PASSWORD: risk_app_pwd
     ports: ["8090:8090"]
+
+  # Go 版 IAM（并行验收）：不直连数据库，用户/会话经 dataway 的 HTTP 契约落 PostgreSQL。
+  # 按服务名解析上游，清单里不写 http://dataway:8090 这种硬编码地址（RL-007）。
+  iam:
+    build: ../rcp-iam
     depends_on:
-      mysql:
-        condition: service_healthy
+      dataway:
+        condition: service_started
+    environment:
+      SERVER_PORT: "8085"
+      DATAWAY_HOST: dataway
+      DATAWAY_PORT: "8090"
+      DATAWAY_DATASOURCE: main
+      IAM_ADMIN_PASSWORD: ${IAM_ADMIN_PASSWORD:-Admin@12345}
+      IAM_OPERATOR_PASSWORD: ${IAM_OPERATOR_PASSWORD:-Operator@12345}
+      IAM_VIEWER_PASSWORD: ${IAM_VIEWER_PASSWORD:-Viewer@12345}
+    ports: ["8085:8085"]
 
   db-ops:
     build: ../rcp-db-ops
     depends_on:
       nacos-init:
         condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     environment:
       DBOPS_MIGRATIONS_DIR: /app/migrations
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/risk_control?useUnicode=true&characterEncoding=utf8
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/risk_control
       SPRING_DATASOURCE_USERNAME: risk_app
       SPRING_DATASOURCE_PASSWORD: risk_app_pwd
     volumes:
       - ./migrations:/app/migrations:ro
     ports: ["8091:8091"]
-    depends_on:
-      mysql:
-        condition: service_healthy
 
   web:
     build: ../rcp-web
