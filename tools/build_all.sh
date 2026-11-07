@@ -19,8 +19,8 @@ step() { printf '\n\033[1m== %s\033[0m\n' "$1"; }
 step "契约 YAML 严格解析（含重复键）"
 python rcp-ops/tools/check_manifests.py rcp-contracts
 
-step "本体一致性（登记 / 契约 / 红线 / 仓布局）"
-python rcp-ontology/rcp_ontology/cli.py check --contracts rcp-contracts --workspace .
+step "本体一致性（声明层 TTL / 契约 / 红线 / 仓布局）"
+python rcp-ontology/checker/cli.py check --contracts rcp-contracts --workspace .
 
 step "契约层静态检查（引用 / 决策内联 / 破坏性变更）"
 # 基线只在有远端时才对比：新仓或离线副本没有 origin/main，跳过而不是失败。
