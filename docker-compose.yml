@@ -51,9 +51,8 @@ services:
 
   api-gateway:
     build: ../rcp-api-gateway
+    # 不依赖 nacos-init：网关已迁 Go，不接注册中心，按 compose DNS 解析服务名。
     depends_on:
-      nacos-init:
-        condition: service_completed_successfully
       content-patrol:
         condition: service_started
       message-patrol:
@@ -66,6 +65,12 @@ services:
         condition: service_started
     environment:
       SERVER_PORT: "8080"
+      # 只注入服务名，不写完整 URL（RL-007）。
+      IAM_HOST: iam
+      PATROL_CONTENT_HOST: content-patrol
+      PATROL_MESSAGE_HOST: message-patrol
+      PATROL_ACCOUNT_HOST: account-patrol
+      PATROL_FUND_HOST: fund-patrol
     ports:
       - "8080:8080"
 

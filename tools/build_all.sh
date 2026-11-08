@@ -47,7 +47,6 @@ step "基座 rcp-core"
 (cd rcp-core && "$MVN" -B -q install)
 
 JAVA_SERVICES=(
-  rcp-api-gateway
   rcp-content-patrol
   rcp-message-patrol
   rcp-account-patrol
@@ -59,12 +58,13 @@ for repo in "${JAVA_SERVICES[@]}"; do
   (cd "$repo" && "$MVN" -B -q verify)
 done
 
-# Go 服务：rcp-iam 的 go.sum 尚未入库，由 tidy 生成；dataway / db-ops 的 go.sum
-# 必须入库，故这里只做 verify（tidy 会改写依赖图，等于把校验变成自动修复）。
+# Go 服务：rcp-iam 的 go.sum 尚未入库，由 tidy 生成；api-gateway / dataway / db-ops
+# 的 go.sum 必须入库，故这里只做 verify（tidy 会改写依赖图，等于把校验变成自动修复）。
 step "Go 服务 rcp-iam"
 (cd rcp-iam && go mod tidy && go vet ./... && go test ./... && go build ./...)
 
 GO_SERVICES=(
+  rcp-api-gateway
   rcp-dataway
   rcp-db-ops
 )
