@@ -7,9 +7,10 @@ metadata:
     app: api-gateway
     platform: risk-control
 spec:
-  # 幂等与状态机在实例内存（与 Java 版等价，重启失效），多副本之间不共享；
-  # 保留 2 副本只为入口可用性，不作为幂等正确性依赖。
-  replicas: 2
+  # 幂等表与状态机在实例内存（与 Java 版等价，重启失效），副本之间不共享。
+  # 故单副本部署：多副本会让同一 event_id 落到不同实例，幂等形同虚设。
+  # 要恢复多副本，先把这两张表落到 PostgreSQL（经 dataway），再抬 replicas。
+  replicas: 1
   selector:
     matchLabels:
       app: api-gateway
