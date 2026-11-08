@@ -1,5 +1,8 @@
 # 本地一键起全平台：docker compose up --build
 # 构建上下文指向同工作区的兄弟仓，所以必须在 rcp-ops 目录下执行。
+#
+# 凭据不入库：口令从同目录的 .env 读取（见 .env.example）。缺变量时 compose 直接报错，
+# 不会静默使用弱口令。真实集群同样不提交明文，见 k8s/02-secret.example.yaml 的说明。
 name: risk-control
 
 services:
@@ -8,7 +11,7 @@ services:
     environment:
       POSTGRES_DB: risk_control
       POSTGRES_USER: risk_app
-      POSTGRES_PASSWORD: risk_app_pwd
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?请在 rcp-ops/.env 里设置 DB_PASSWORD}
     ports:
       - "5432:5432"
     healthcheck:
@@ -17,107 +20,20 @@ services:
       timeout: 5s
       retries: 10
 
-  # 注册/配置中心。应用侧已引入 nacos-discovery 依赖，按服务名注册与解析
-  # （server-addr/namespace/group 的占位符默认值即命中本文件：服务名 nacos，
-  # namespace risk-control）。接线过程见 rcp-contracts/docs/DISCOVERY.md。
-  # 未加 healthcheck 是因为镜像内是否带 curl 随版本变化，不写无法验证的探针。
-  nacos:
-    image: nacos/nacos-server:v2.3.2
-    environment:
-      MODE: standalone
-      NACOS_AUTH_ENABLE: "false"
-      JVM_XMS: 256m
-      JVM_XMX: 512m
-    ports:
-      - "8848:8848"
-      - "9848:9848"
-
-  # 一次性初始化：创建 risk-control 命名空间。Nacos 的 namespace 不随注册自动创建，
-  # 应用往不存在的 namespace 注册会失败，故所有 Java 服务启动前先经 console API 建好。
-  nacos-init:
-    image: curlimages/curl:8.10.1
-    depends_on: [nacos]
-    entrypoint:
-      - /bin/sh
-      - -c
-      - |
-        until curl -sf -o /dev/null http://nacos:8848/nacos/v1/console/health/readiness; do
-          echo "waiting for nacos..." && sleep 2
-        done
-        # 幂等：已存在时 Nacos 返回错误信息，忽略即可
-        curl -s -X POST "http://nacos:8848/nacos/v1/console/namespaces" \
-          -d "customNamespaceId=risk-control&namespaceName=risk-control" || true
-        echo "namespace risk-control ready"
-
   api-gateway:
     build: ../rcp-api-gateway
-    # 不依赖 nacos-init：网关已迁 Go，不接注册中心，按 compose DNS 解析服务名。
     depends_on:
-      content-patrol:
-        condition: service_started
-      message-patrol:
-        condition: service_started
-      account-patrol:
-        condition: service_started
-      fund-patrol:
-        condition: service_started
       iam:
         condition: service_started
     environment:
       SERVER_PORT: "8080"
-      # 只注入服务名，不写完整 URL（RL-007）。
+      # 只注入服务名，不写完整地址（RL-007）。
       IAM_HOST: iam
-      PATROL_CONTENT_HOST: content-patrol
-      PATROL_MESSAGE_HOST: message-patrol
-      PATROL_ACCOUNT_HOST: account-patrol
-      PATROL_FUND_HOST: fund-patrol
     ports:
       - "8080:8080"
 
-  content-patrol:
-    build: ../rcp-content-patrol
-    depends_on:
-      nacos-init:
-        condition: service_completed_successfully
-    ports: ["8081:8081"]
-
-  message-patrol:
-    build: ../rcp-message-patrol
-    depends_on:
-      nacos-init:
-        condition: service_completed_successfully
-    ports: ["8082:8082"]
-
-  account-patrol:
-    build: ../rcp-account-patrol
-    depends_on:
-      nacos-init:
-        condition: service_completed_successfully
-    ports: ["8083:8083"]
-
-  fund-patrol:
-    build: ../rcp-fund-patrol
-    depends_on:
-      nacos-init:
-        condition: service_completed_successfully
-    ports: ["8084:8084"]
-
   # 身份与访问管理：网关逐请求内省判定令牌，登录/用户管理经网关透传。
-  # 引导口令用演示默认值，真实部署改为 Secret 注入（见 k8s/02-secret.example.yaml）。
-  # Go 版数据网关：不注册 Nacos（Go 侧没有 nacos-sdk 接线），按 Service 名经 DNS 解析，
-  # 因此不再依赖 nacos-init。连接串走单一变量，凭据不再拆三份。
-  dataway:
-    build: ../rcp-dataway
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      DATAWAY_DB_DSN: "postgres://risk_app:risk_app_pwd@postgres:5432/risk_control?sslmode=disable"
-    ports: ["8090:8090"]
-
-  # Go 版 IAM（并行验收）：不直连数据库，用户/会话经 dataway 的 HTTP 契约落 PostgreSQL。
-  # 按服务名解析上游：只注入 Service 名与端口，清单里不出现完整地址（RL-007）。
-  # 注意 RL-007 的 upstream-scan 是逐行文本匹配、不区分注释，注释里写完整地址同样会判红。
+  # 引导口令从 .env 读；真实部署改为 Secret 注入（见 k8s/02-secret.example.yaml）。
   iam:
     build: ../rcp-iam
     depends_on:
@@ -128,12 +44,22 @@ services:
       DATAWAY_HOST: dataway
       DATAWAY_PORT: "8090"
       DATAWAY_DATASOURCE: main
-      IAM_ADMIN_PASSWORD: ${IAM_ADMIN_PASSWORD:-Admin@12345}
-      IAM_OPERATOR_PASSWORD: ${IAM_OPERATOR_PASSWORD:-Operator@12345}
-      IAM_VIEWER_PASSWORD: ${IAM_VIEWER_PASSWORD:-Viewer@12345}
+      IAM_ADMIN_PASSWORD: ${IAM_ADMIN_PASSWORD:?请在 rcp-ops/.env 里设置 IAM_ADMIN_PASSWORD}
+      IAM_OPERATOR_PASSWORD: ${IAM_OPERATOR_PASSWORD:?请在 rcp-ops/.env 里设置 IAM_OPERATOR_PASSWORD}
+      IAM_VIEWER_PASSWORD: ${IAM_VIEWER_PASSWORD:?请在 rcp-ops/.env 里设置 IAM_VIEWER_PASSWORD}
     ports: ["8085:8085"]
 
-  # Go 版迁移执行器：迁移目录只读挂载，DDL 只能经它执行（RL-004）。
+  # 数据网关：按 Service 名经 DNS 解析，连接串走单一变量。
+  dataway:
+    build: ../rcp-dataway
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATAWAY_DB_DSN: "postgres://risk_app:${DB_PASSWORD}@postgres:5432/risk_control?sslmode=disable"
+    ports: ["8090:8090"]
+
+  # 迁移执行器：迁移目录只读挂载，DDL 只能经它执行（RL-004）。
   db-ops:
     build: ../rcp-db-ops
     depends_on:
@@ -141,7 +67,7 @@ services:
         condition: service_healthy
     environment:
       DBOPS_MIGRATIONS_DIR: /app/migrations
-      DBOPS_DB_DSN: "postgres://risk_app:risk_app_pwd@postgres:5432/risk_control?sslmode=disable"
+      DBOPS_DB_DSN: "postgres://risk_app:${DB_PASSWORD}@postgres:5432/risk_control?sslmode=disable"
     volumes:
       - ./migrations:/app/migrations:ro
     ports: ["8091:8091"]

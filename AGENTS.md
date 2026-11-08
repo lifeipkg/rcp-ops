@@ -13,7 +13,8 @@
 2. **每个版本配 undo。** 缺少回滚脚本时 db-ops 会拒绝回滚；不要为了"先上线"省掉。
 3. **不在本仓写业务代码。** 这里只有 SQL、清单与编排；业务逻辑回流说明分层破了。
 4. **清单里的镜像 tag 与 kustomization 一致。** 两处漂移会让"部署的是哪版"无从核对。
-5. **不提交真实凭据。** `k8s/02-secret.example.yaml` 只是形态示例，真实密码走集群注入。
+5. **不提交真实凭据。** `k8s/02-secret.example.yaml` 只是形态示例，真实密码走集群注入；
+   本地 `docker-compose.yml` 的口令走 gitignored 的 `.env`（模板 `.env.example`）。
 
 ## 验证
 

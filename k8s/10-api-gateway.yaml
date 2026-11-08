@@ -7,9 +7,7 @@ metadata:
     app: api-gateway
     platform: risk-control
 spec:
-  # 幂等表与状态机在实例内存（与 Java 版等价，重启失效），副本之间不共享。
-  # 故单副本部署：多副本会让同一 event_id 落到不同实例，幂等形同虚设。
-  # 要恢复多副本，先把这两张表落到 PostgreSQL（经 dataway），再抬 replicas。
+  # 网关当前无跨实例共享状态，单副本起步；需要多副本时先确认会话与限流状态不落内存。
   replicas: 1
   selector:
     matchLabels:
@@ -25,7 +23,7 @@ spec:
         runAsUser: 10001   # 与 rcp-api-gateway/Dockerfile 的 app 用户一致
       containers:
         - name: api-gateway
-          image: ghcr.io/lifeipkg/rcp-api-gateway:1.0.0
+          image: ghcr.io/lifeipkg/rcp-api-gateway:2.0.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -33,20 +31,12 @@ spec:
           env:
             - name: SERVER_PORT
               value: "8080"
-            # Go 版不接 Nacos：只注入 Service 名与端口，由 DNS 解析并分发多实例，
+            # 不注册外部注册中心：只注入 Service 名与端口，由 DNS 解析并分发多实例，
             # 清单不写死上游地址（RL-007）。
             - name: IAM_HOST
               value: iam
             - name: IAM_PORT
               value: "8085"
-            - name: PATROL_CONTENT_HOST
-              value: content-patrol
-            - name: PATROL_MESSAGE_HOST
-              value: message-patrol
-            - name: PATROL_ACCOUNT_HOST
-              value: account-patrol
-            - name: PATROL_FUND_HOST
-              value: fund-patrol
           # Go 版只有一个探活端点：Spring 的 readiness/liveness 分组探针不存在。
           readinessProbe:
             httpGet:

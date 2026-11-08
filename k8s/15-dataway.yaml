@@ -30,7 +30,7 @@ spec:
           env:
             - name: SERVER_PORT
               value: "8090"
-            # Go 版不接 Nacos：按 Service 名经 k8s DNS 解析，清单里不写上游 URL（RL-007）。
+            # 按 Service 名经 k8s DNS 解析，清单里不写上游 URL（RL-007）。
             # 连接串按分量拼装，复用既有的 rcp-db-credential（username / password）。
             - name: DB_HOST
               value: postgres
