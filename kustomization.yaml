@@ -18,6 +18,7 @@ resources:
   - k8s/14-fund-patrol.yaml
   - k8s/15-dataway.yaml
   - k8s/16-db-ops.yaml
+  - k8s/17-iam.yaml
   - k8s/20-web.yaml
   - k8s/90-ingress.yaml
 
@@ -28,6 +29,7 @@ configMapGenerator:
       - migrations/V1.1.0__content_patrol.sql
       - migrations/V1.2.0__message_patrol.sql
       - migrations/V1.3.0__event_verdict_ledger.sql
+      - migrations/V1.4.0__iam_store.sql
 
 images:
   - name: ghcr.io/lifeipkg/rcp-api-gateway
@@ -43,6 +45,8 @@ images:
   - name: ghcr.io/lifeipkg/rcp-dataway
     newTag: 1.0.0
   - name: ghcr.io/lifeipkg/rcp-db-ops
+    newTag: 1.0.0
+  - name: ghcr.io/lifeipkg/rcp-iam
     newTag: 1.0.0
   - name: ghcr.io/lifeipkg/rcp-web
     newTag: 1.0.0

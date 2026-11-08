@@ -12,6 +12,10 @@ if [[ -z "${JAVA_HOME:-}" ]]; then
   echo "需要 JAVA_HOME（JDK 17）" >&2
   exit 2
 fi
+if ! command -v go >/dev/null 2>&1; then
+  echo "需要 Go 1.22+（构建 rcp-iam）" >&2
+  exit 2
+fi
 MVN="${MVN:-mvn}"
 
 step() { printf '\n\033[1m== %s\033[0m\n' "$1"; }
@@ -57,11 +61,15 @@ for repo in "${JAVA_SERVICES[@]}"; do
   (cd "$repo" && "$MVN" -B -q verify)
 done
 
+step "Go 服务 rcp-iam"
+(cd rcp-iam && go mod tidy && go vet ./... && go test ./... && go build ./...)
+
 step "契约 → 实现 对表"
 check_contract() {
   python rcp-contracts/tools/contract_check.py --repo "$1" --contract "rcp-contracts/contracts/openapi/$2"
 }
 check_contract rcp-api-gateway api-gateway.yaml
+check_contract rcp-iam iam.yaml
 check_contract rcp-content-patrol content-patrol.yaml
 check_contract rcp-message-patrol message-patrol.yaml
 check_contract rcp-account-patrol account-patrol.yaml

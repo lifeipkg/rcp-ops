@@ -8,7 +8,7 @@ metadata:
     platform: risk-control
 spec:
   # 单副本 standalone：本平台无生产集群，此处只给形态，不作为高可用承诺。
-  # 生产化需改为集群模式 + 外部存储（MySQL），并另立清单与验收项。
+  # 生产化需改为集群模式 + 外部存储（PostgreSQL），并另立清单与验收项。
   replicas: 1
   selector:
     matchLabels:
