@@ -4,7 +4,8 @@ metadata:
   name: rcp-platform-config
   namespace: risk-control
 data:
-  # 平台级非敏感配置。巡查线地址经 Nacos 按服务名解析，清单不写死上游地址（RL-007）。
+  # 平台级非敏感配置。清单不写死上游地址（RL-007）：Java 巡查线注册 Nacos，
+  # Go 服务（api-gateway/iam/dataway/db-ops）按 Service 名经 DNS 解析。
   DBOPS_MIGRATIONS_DIR: /app/migrations
   DATAWAY_DATASOURCE_NAME: main
   # 服务发现无需在此注入：application.yml 的占位符自带默认值
