@@ -52,8 +52,6 @@ JAVA_SERVICES=(
   rcp-message-patrol
   rcp-account-patrol
   rcp-fund-patrol
-  rcp-dataway
-  rcp-db-ops
 )
 
 for repo in "${JAVA_SERVICES[@]}"; do
@@ -61,8 +59,20 @@ for repo in "${JAVA_SERVICES[@]}"; do
   (cd "$repo" && "$MVN" -B -q verify)
 done
 
+# Go 服务：rcp-iam 的 go.sum 尚未入库，由 tidy 生成；dataway / db-ops 的 go.sum
+# 必须入库，故这里只做 verify（tidy 会改写依赖图，等于把校验变成自动修复）。
 step "Go 服务 rcp-iam"
 (cd rcp-iam && go mod tidy && go vet ./... && go test ./... && go build ./...)
+
+GO_SERVICES=(
+  rcp-dataway
+  rcp-db-ops
+)
+
+for repo in "${GO_SERVICES[@]}"; do
+  step "Go 服务 $repo"
+  (cd "$repo" && go mod verify && go vet ./... && go test ./... && go build ./...)
+done
 
 step "契约 → 实现 对表"
 check_contract() {

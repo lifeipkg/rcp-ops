@@ -14,10 +14,10 @@
 ## 数据库
 
 平台统一使用 **PostgreSQL 16**。本地编排 `docker-compose.yml` 起 `postgres:16`
-（库 `risk_control`、端口 5432），`dataway` / `db-ops` 用 `org.postgresql` 驱动，
-连接串 `jdbc:postgresql://postgres:5432/risk_control`；K8s 侧数据库是外部依赖，
-清单只提供连接串，需由集群提供名为 `postgres` 的 Service 与 `rcp-db-credential` Secret。
-两仓的默认数据源也指向 PG，单元测试才用 H2 内存库（PG 兼容模式）避免依赖真实实例。
+（库 `risk_control`、端口 5432），`dataway` / `db-ops` 是 Go 服务、用 `pgx/v5` 驱动，
+连接串由 `DATAWAY_DB_DSN` / `DBOPS_DB_DSN`（或 `DB_*` 分量）给出；K8s 侧数据库是外部依赖，
+清单只注入分量与 Secret，需由集群提供名为 `postgres` 的 Service 与 `rcp-db-credential` Secret。
+两仓单测不连真实库：数据库面被抽成接口，用 fake 实现断言拒绝路径与事务语义。
 
 `migrations/` 的 DDL 已按 PG 方言改写（完整差异表见 `V1.0.0__common_schema.sql` 头部）：
 `SMALLINT` / `INTEGER` / `BIGINT` 取代 `TINYINT` / `UNSIGNED`，`JSONB` 取代 `JSON`，

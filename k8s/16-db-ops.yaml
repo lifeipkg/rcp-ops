@@ -19,7 +19,7 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
-        runAsUser: 1000
+        runAsUser: 10001   # 与 rcp-db-ops/Dockerfile 的 app 用户一致
       containers:
         - name: db-ops
           image: ghcr.io/lifeipkg/rcp-db-ops:1.0.0
@@ -32,14 +32,19 @@ spec:
               value: "8091"
             - name: DBOPS_MIGRATIONS_DIR
               value: /app/migrations
-            - name: SPRING_DATASOURCE_URL
-              value: jdbc:postgresql://postgres:5432/risk_control
-            - name: SPRING_DATASOURCE_USERNAME
+            # Go 版不接 Nacos：按 Service 名经 k8s DNS 解析；连接串按分量拼装
+            - name: DB_HOST
+              value: postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: risk_control
+            - name: DB_USER
               valueFrom:
                 secretKeyRef:
                   name: rcp-db-credential
                   key: username
-            - name: SPRING_DATASOURCE_PASSWORD
+            - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: rcp-db-credential
@@ -48,17 +53,18 @@ spec:
             - name: migrations
               mountPath: /app/migrations
               readOnly: true
+          # Go 版只有单一探活（与 rcp-iam 一致）
           readinessProbe:
             httpGet:
-              path: /actuator/health/readiness
+              path: /actuator/health
               port: http
-            initialDelaySeconds: 20
+            initialDelaySeconds: 10
             periodSeconds: 10
           livenessProbe:
             httpGet:
-              path: /actuator/health/liveness
+              path: /actuator/health
               port: http
-            initialDelaySeconds: 40
+            initialDelaySeconds: 20
             periodSeconds: 20
           resources:
             requests:

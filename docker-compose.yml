@@ -99,23 +99,20 @@ services:
 
   # 身份与访问管理：网关逐请求内省判定令牌，登录/用户管理经网关透传。
   # 引导口令用演示默认值，真实部署改为 Secret 注入（见 k8s/02-secret.example.yaml）。
+  # Go 版数据网关：不注册 Nacos（Go 侧没有 nacos-sdk 接线），按 Service 名经 DNS 解析，
+  # 因此不再依赖 nacos-init。连接串走单一变量，凭据不再拆三份。
   dataway:
     build: ../rcp-dataway
-    # 两个前置条件必须写在同一个 depends_on 下：YAML 重复键会让后一个静默覆盖前一个，
-    # 之前写成两段时 nacos-init 条件就是这么丢掉的（check_manifests 会判红）。
     depends_on:
-      nacos-init:
-        condition: service_completed_successfully
       postgres:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/risk_control
-      SPRING_DATASOURCE_USERNAME: risk_app
-      SPRING_DATASOURCE_PASSWORD: risk_app_pwd
+      DATAWAY_DB_DSN: "postgres://risk_app:risk_app_pwd@postgres:5432/risk_control?sslmode=disable"
     ports: ["8090:8090"]
 
   # Go 版 IAM（并行验收）：不直连数据库，用户/会话经 dataway 的 HTTP 契约落 PostgreSQL。
-  # 按服务名解析上游，清单里不写 http://dataway:8090 这种硬编码地址（RL-007）。
+  # 按服务名解析上游：只注入 Service 名与端口，清单里不出现完整地址（RL-007）。
+  # 注意 RL-007 的 upstream-scan 是逐行文本匹配、不区分注释，注释里写完整地址同样会判红。
   iam:
     build: ../rcp-iam
     depends_on:
@@ -131,18 +128,15 @@ services:
       IAM_VIEWER_PASSWORD: ${IAM_VIEWER_PASSWORD:-Viewer@12345}
     ports: ["8085:8085"]
 
+  # Go 版迁移执行器：迁移目录只读挂载，DDL 只能经它执行（RL-004）。
   db-ops:
     build: ../rcp-db-ops
     depends_on:
-      nacos-init:
-        condition: service_completed_successfully
       postgres:
         condition: service_healthy
     environment:
       DBOPS_MIGRATIONS_DIR: /app/migrations
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/risk_control
-      SPRING_DATASOURCE_USERNAME: risk_app
-      SPRING_DATASOURCE_PASSWORD: risk_app_pwd
+      DBOPS_DB_DSN: "postgres://risk_app:risk_app_pwd@postgres:5432/risk_control?sslmode=disable"
     volumes:
       - ./migrations:/app/migrations:ro
     ports: ["8091:8091"]
