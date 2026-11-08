@@ -32,7 +32,7 @@ spec:
               value: "8091"
             - name: DBOPS_MIGRATIONS_DIR
               value: /app/migrations
-            # Go 版不接 Nacos：按 Service 名经 k8s DNS 解析；连接串按分量拼装
+            # 按 Service 名经 k8s DNS 解析；连接串按分量拼装
             - name: DB_HOST
               value: postgres
             - name: DB_PORT

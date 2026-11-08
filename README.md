@@ -7,9 +7,9 @@
 | 路径 | 是什么 |
 |---|---|
 | `migrations/` | 版本化 DDL 真源，由 `rcp-db-ops` 执行；`V<版本>__<描述>.sql` 正向、`U<版本>__<描述>.sql` 回滚 |
-| `k8s/` | 命名空间、配置、九个工作负载（网关 / IAM / 四条巡查线 / 数据网关 / 数据库操作 / 前端）、Ingress |
+| `k8s/` | 命名空间、配置、五个工作负载（网关 / IAM / 数据网关 / 数据库操作 / 前端）、Ingress |
 | `kustomization.yaml` | 入口：`kubectl apply -k .`；迁移 SQL 用 `configMapGenerator` 打进 db-ops 挂载点 |
-| `docker-compose.yml` | 本地一键起全平台（含 PostgreSQL 16） |
+| `docker-compose.yml` | 本地一键起全平台（含 PostgreSQL 16）；口令从 `.env` 读取，模板见 `.env.example` |
 
 ## 数据库
 
@@ -30,14 +30,11 @@
 
 | 版本 | 内容 |
 |---|---|
-| `1.0.0` | 平台共同基建：幂等、状态机、规则、处置日志、复核队列、标注回流 |
-| `1.1.0` | 内容巡查线：岗位状态机、指纹分段倒排、判重结果、岗位复核队列 |
-| `1.2.0` | 消息巡查线：关键词库、变体映射、白名单、命中明细、消息幂等 |
-| `1.3.0` | 平台级台账：`patrol_event` / `patrol_verdict`（dataway 白名单表的真源） |
 | `1.4.0` | IAM 的用户与会话表：`iam_users` / `iam_sessions`（经 dataway 模板读写） |
 
-> 命名冲突说明：`1.1.0` 里两张表原叫 `patrol_verdict` / `patrol_review_queue`，与 `1.0.0` 的通用复核队列同名。
-> 版本化后改成 `job_verdict` / `job_review_queue`，语义边界明确（岗位判重专用 vs 平台通用）。
+> `1.0.0` ~ `1.3.0` 是原巡查平台的表（幂等、状态机、规则、处置台账），已随巡查线一并删除。
+> 版本号不回收：已执行过这些版本的库，其台账里仍保留记录，跳号是历史事实而非遗漏。
+> 新库直接从 `1.4.0` 起，只建 IAM 两张表。
 
 ## 部署
 
@@ -61,3 +58,5 @@ docker compose up --build
 6. IAM 的引导口令只经 `rcp-iam-bootstrap` Secret 注入（`02-secret.example.yaml` 只放占位值）；
 7. 会话经 dataway 落在 PostgreSQL 的 `iam_sessions` 表，不在实例内存，可多副本；
    当前仍按 1 副本部署。
+8. **本地凭据走 `.env`。** `docker-compose.yml` 用 `${DB_PASSWORD:?...}` 等必填占位符，
+   缺变量时 compose 直接失败，不会退回弱口令；`.env` 不入库，模板见 `.env.example`。
